@@ -41,7 +41,7 @@ def parse_args():
     parser.add_argument('--num-workers', type=int, default=2, help='Dataset workers')
 
     parser.add_argument('--batch-size', type=int, default=64, help='Batch size')
-    parser.add_argument('--epochs', type=int, default=500, help='Training epochs')
+    parser.add_argument('--epochs', type=int, default=30, help='Training epochs')
     parser.add_argument('--batches-per-epoch', type=int, default=200, help='Batches per Epoch')
     parser.add_argument('--val-batches', type=int, default=350, help='Validation Batches')
 
