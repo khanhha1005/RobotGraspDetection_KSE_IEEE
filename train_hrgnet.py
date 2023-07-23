@@ -40,7 +40,7 @@ def parse_args():
                         help='Shift the start point of the dataset to use a different test/train split for cross validation.')
     parser.add_argument('--num-workers', type=int, default=1, help='Dataset workers')
 
-    parser.add_argument('--batch-size', type=int, default=64, help='Batch size')
+    parser.add_argument('--batch-size', type=int, default=32, help='Batch size')
     parser.add_argument('--epochs', type=int, default=30, help='Training epochs')
     parser.add_argument('--batches-per-epoch', type=int, default=200, help='Batches per Epoch')
     parser.add_argument('--val-batches', type=int, default=350, help='Validation Batches')
