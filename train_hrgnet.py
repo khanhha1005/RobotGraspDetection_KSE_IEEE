@@ -38,11 +38,11 @@ def parse_args():
     parser.add_argument('--split', type=float, default=0.9, help='Fraction of data for training (remainder is validation)')
     parser.add_argument('--ds-rotate', type=float, default=0.0,
                         help='Shift the start point of the dataset to use a different test/train split for cross validation.')
-    parser.add_argument('--num-workers', type=int, default=8, help='Dataset workers')
+    parser.add_argument('--num-workers', type=int, default=2, help='Dataset workers')
 
-    parser.add_argument('--batch-size', type=int, default=8, help='Batch size')
+    parser.add_argument('--batch-size', type=int, default=64, help='Batch size')
     parser.add_argument('--epochs', type=int, default=500, help='Training epochs')
-    parser.add_argument('--batches-per-epoch', type=int, default=500, help='Batches per Epoch')
+    parser.add_argument('--batches-per-epoch', type=int, default=200, help='Batches per Epoch')
     parser.add_argument('--val-batches', type=int, default=350, help='Validation Batches')
 
     # Logging etc.
@@ -50,6 +50,7 @@ def parse_args():
     parser.add_argument('--outdir', type=str, default='output/models/', help='Training Output Directory')
     parser.add_argument('--logdir', type=str, default='tensorboard/', help='Log directory')
     parser.add_argument('--vis', default=False, help='Visualise the training process')
+
 
     args = parser.parse_args()
     return args
