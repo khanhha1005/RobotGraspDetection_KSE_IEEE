@@ -35,7 +35,7 @@ def parse_args():
     parser.add_argument('--dataset-path', type=str,default="/kaggle/input/cvat-cornell/" ,help='Path to dataset')
     parser.add_argument('--use-depth', type=int, default=0, help='Use Depth image for training (1/0)')
     parser.add_argument('--use-rgb', type=int, default=1, help='Use RGB image for training (0/1)')
-    parser.add_argument('--split', type=float, default=0.9, help='Fraction of data for training (remainder is validation)')
+    parser.add_argument('--split', type=float, default=0.8, help='Fraction of data for training (remainder is validation)')
     parser.add_argument('--ds-rotate', type=float, default=0.0,
                         help='Shift the start point of the dataset to use a different test/train split for cross validation.')
     parser.add_argument('--num-workers', type=int, default=1, help='Dataset workers')
