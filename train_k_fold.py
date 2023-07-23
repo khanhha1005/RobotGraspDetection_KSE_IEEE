@@ -24,7 +24,7 @@ def parse_args():
 
 
     # Dataset & Data & Training
-    parser.add_argument('--dataset', type=str,default="cornell", help='Dataset Name ("cornell" or "jaquard or multi")')
+    parser.add_argument('--dataset', type=str,default="jaquard", help='Dataset Name ("cornell" or "jaquard or multi")')
     parser.add_argument('--dataset-path', type=str,default="/kaggle/input/cvat-cornell/" ,help='Path to dataset')
     parser.add_argument('--use-depth', type=int, default=1, help='Use Depth image for training (1/0)')
     parser.add_argument('--use-rgb', type=int, default=0, help='Use RGB image for training (0/1)')
@@ -33,7 +33,7 @@ def parse_args():
                         help='Shift the start point of the dataset to use a different test/train split for cross validation.')
     parser.add_argument('--num-workers', type=int, default=8, help='Dataset workers')
 
-    parser.add_argument('--batch-size', type=int, default=8, help='Batch size')
+    parser.add_argument('--batch-size', type=int, default=16, help='Batch size')
     parser.add_argument('--epochs', type=int, default=2000, help='Training epochs')
     parser.add_argument('--batches-per-epoch', type=int, default=500, help='Batches per Epoch')
     parser.add_argument('--val-batches', type=int, default=201, help='Validation Batches')
