@@ -3,29 +3,35 @@ import os
 import sys
 import argparse
 import logging
+
 import cv2
+
 import torch
 import torch.utils.data
 import torch.optim as optim
+
 from torchsummary import summary
-from sklearn.model_selection import KFold
-#from traning import train, validate
-from utils.data import get_dataset
-from models.common import post_process_output
+
+import tensorboardX
+
+from utils.visualisation.gridshow import gridshow
+
 from utils.dataset_processing import evaluation
-#from models.swin import SwinTransformerSys
-# from models.Swin_without_skipconcetion import SwinTransformerSys
+from utils.data import get_dataset
+from models import get_network
+from models.common import post_process_output
+
 logging.basicConfig(level=logging.INFO)
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='TF-Grasp')
+    parser = argparse.ArgumentParser(description='Train GG-CNN')
 
     # Network
-
+    parser.add_argument('--network', type=str, default='ggcnn', help='Network Name in .models')
 
     # Dataset & Data & Training
-    parser.add_argument('--dataset', type=str,default="cornell", help='Dataset Name ("cornell" or "jaquard or multi")')
-    parser.add_argument('--dataset-path', type=str,default="/kaggle/input/cvat-cornell/" ,help='Path to dataset')
+    parser.add_argument('--dataset', type=str, help='Dataset Name ("cornell" or "jaquard")')
+    parser.add_argument('--dataset-path', type=str, help='Path to dataset')
     parser.add_argument('--use-depth', type=int, default=1, help='Use Depth image for training (1/0)')
     parser.add_argument('--use-rgb', type=int, default=0, help='Use RGB image for training (0/1)')
     parser.add_argument('--split', type=float, default=0.9, help='Fraction of data for training (remainder is validation)')
@@ -33,16 +39,20 @@ def parse_args():
                         help='Shift the start point of the dataset to use a different test/train split for cross validation.')
     parser.add_argument('--num-workers', type=int, default=8, help='Dataset workers')
 
-    parser.add_argument('--batch-size', type=int, default=64, help='Batch size')
+    parser.add_argument('--batch-size', type=int, default=8, help='Batch size')
     parser.add_argument('--epochs', type=int, default=50, help='Training epochs')
     parser.add_argument('--batches-per-epoch', type=int, default=1000, help='Batches per Epoch')
     parser.add_argument('--val-batches', type=int, default=250, help='Validation Batches')
+
     # Logging etc.
     parser.add_argument('--description', type=str, default='', help='Training description')
     parser.add_argument('--outdir', type=str, default='output/models/', help='Training Output Directory')
+    parser.add_argument('--logdir', type=str, default='tensorboard/', help='Log directory')
+    parser.add_argument('--vis', action='store_true', help='Visualise the training process')
 
     args = parser.parse_args()
     return args
+
 
 def validate(net, device, val_data, batches_per_epoch):
     """
@@ -103,7 +113,7 @@ def validate(net, device, val_data, batches_per_epoch):
     return results
 
 
-def train(epoch, net, device, train_data, optimizer, batches_per_epoch, vis=False,scheduler=None):
+def train(epoch, net, device, train_data, optimizer, batches_per_epoch, vis=False):
     """
     Run one training epoch
     :param epoch: Current epoch
@@ -124,18 +134,12 @@ def train(epoch, net, device, train_data, optimizer, batches_per_epoch, vis=Fals
     net.train()
 
     batch_idx = 0
-    index=0
-    count=1
     # Use batches per epoch to make training on different sized datasets (cornell/jacquard) more equivalent.
-    # while batch_idx < batches_per_epoch:
-    while index < count:
-        index=index+1
-        batch_idx=0
+    while batch_idx < batches_per_epoch:
         for x, y, _, _, _ in train_data:
-            # print("shape:",x.shape)
             batch_idx += 1
-            # if batch_idx >= batches_per_epoch:
-            #     break
+            if batch_idx >= batches_per_epoch:
+                break
 
             xc = x.to(device)
             yc = [yy.to(device) for yy in y]
@@ -155,7 +159,6 @@ def train(epoch, net, device, train_data, optimizer, batches_per_epoch, vis=Fals
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            # scheduler.step()
 
             # Display the images
             if vis:
@@ -174,8 +177,15 @@ def train(epoch, net, device, train_data, optimizer, batches_per_epoch, vis=Fals
         results['losses'][l] /= batch_idx
 
     return results
+
+
 def run():
     args = parse_args()
+
+    # Vis window
+    if args.vis:
+        cv2.namedWindow('Display', cv2.WINDOW_NORMAL)
+
     # Set-up output directories
     dt = datetime.datetime.now().strftime('%y%m%d_%H%M')
     net_desc = '{}_{}'.format(dt, '_'.join(args.description.split()))
@@ -183,74 +193,79 @@ def run():
     save_folder = os.path.join(args.outdir, net_desc)
     if not os.path.exists(save_folder):
         os.makedirs(save_folder)
+    tb = tensorboardX.SummaryWriter(os.path.join(args.logdir, net_desc))
 
     # Load Dataset
     logging.info('Loading {} Dataset...'.format(args.dataset.title()))
     Dataset = get_dataset(args.dataset)
 
-
-    dataset = Dataset(args.dataset_path, start=0.0, end=0.9, ds_rotate=args.ds_rotate,
-                                              random_rotate=True, random_zoom=True,
-                                              include_depth=args.use_depth, include_rgb=args.use_rgb)
-
-    # dataset1 = Dataset("/home/zzl/Pictures/cornelltest", start=0.0, end=1.0, ds_rotate=args.ds_rotate,
-    #                                           random_rotate=True, random_zoom=True,
-    #                                           include_depth=args.use_depth, include_rgb=args.use_rgb)                                          
-    k_folds = 5
-    kfold = KFold(n_splits=k_folds, shuffle=True)
+    train_dataset = Dataset(args.dataset_path, start=0.0, end=args.split, ds_rotate=args.ds_rotate,
+                            random_rotate=True, random_zoom=True,
+                            include_depth=args.use_depth, include_rgb=args.use_rgb)
+    train_data = torch.utils.data.DataLoader(
+        train_dataset,
+        batch_size=args.batch_size,
+        shuffle=True,
+        num_workers=args.num_workers
+    )
+    val_dataset = Dataset(args.dataset_path, start=args.split, end=1.0, ds_rotate=args.ds_rotate,
+                          random_rotate=True, random_zoom=True,
+                          include_depth=args.use_depth, include_rgb=args.use_rgb)
+    val_data = torch.utils.data.DataLoader(
+        val_dataset,
+        batch_size=1,
+        shuffle=False,
+        num_workers=args.num_workers
+    )
     logging.info('Done')
+
+    # Load the network
     logging.info('Loading Network...')
     input_channels = 1*args.use_depth + 3*args.use_rgb
-    
-    from models.parm import config
-    from models.HEHERnet_official import HRNet
-    
-    net=HRNet(input_channels=input_channels,cfg=config)
+    ggcnn = get_network(args.network)
 
-    #net = SwinTransformerSys(in_chans=input_channels,embed_dim=48,num_heads=[1,2,4,8])
+    net = ggcnn(input_channels=input_channels)
     device = torch.device("cuda:0")
     net = net.to(device)
-    optimizer = optim.AdamW(net.parameters(), lr=1e-4)
-    listy = [x *30 for x in range(1,1000,3)]
-    schedule=torch.optim.lr_scheduler.MultiStepLR(optimizer,milestones=listy,gamma=0.9)
+    optimizer = optim.Adam(net.parameters())
     logging.info('Done')
-    
+
+    # Print model architecture.
+    summary(net, (input_channels, 300, 300))
+    f = open(os.path.join(save_folder, 'arch.txt'), 'w')
+    sys.stdout = f
+    summary(net, (input_channels, 300, 300))
+    sys.stdout = sys.__stdout__
+    f.close()
+
     best_iou = 0.0
     for epoch in range(args.epochs):
-        accuracy=0.
-        for fold, (train_ids, test_ids) in enumerate(kfold.split(dataset)):
+        logging.info('Beginning Epoch {:02d}'.format(epoch))
+        train_results = train(epoch, net, device, train_data, optimizer, args.batches_per_epoch, vis=args.vis)
 
-            train_subsampler = torch.utils.data.SubsetRandomSampler(train_ids)
-            test_subsampler = torch.utils.data.SubsetRandomSampler(test_ids)
-            trainloader = torch.utils.data.DataLoader(
-                           dataset,
-                           batch_size=args.batch_size,num_workers=args.num_workers, sampler=train_subsampler)
-            testloader = torch.utils.data.DataLoader(
-                           dataset,
-                           batch_size=1,num_workers=args.num_workers, sampler=test_subsampler)
-
-
-            logging.info('Beginning Epoch {:02d}'.format(epoch))
-            print("lr:",optimizer.state_dict()['param_groups'][0]['lr'])
-            train_results = train(epoch, net, device, trainloader, optimizer, args.batches_per_epoch, )
-            schedule.step()
+        # Log training losses to tensorboard
+        tb.add_scalar('loss/train_loss', train_results['loss'], epoch)
+        for n, l in train_results['losses'].items():
+            tb.add_scalar('train_loss/' + n, l, epoch)
 
         # Run Validation
-            logging.info('Validating...')
-            test_results = validate(net, device, testloader, args.val_batches)
-            logging.info('%d/%d = %f' % (test_results['correct'], test_results['correct'] + test_results['failed'],
+        logging.info('Validating...')
+        test_results = validate(net, device, val_data, args.val_batches)
+        logging.info('%d/%d = %f' % (test_results['correct'], test_results['correct'] + test_results['failed'],
                                      test_results['correct']/(test_results['correct']+test_results['failed'])))
 
+        # Log validation results to tensorbaord
+        tb.add_scalar('loss/IOU', test_results['correct'] / (test_results['correct'] + test_results['failed']), epoch)
+        tb.add_scalar('loss/val_loss', test_results['loss'], epoch)
+        for n, l in test_results['losses'].items():
+            tb.add_scalar('val_loss/' + n, l, epoch)
 
-            iou = test_results['correct'] / (test_results['correct'] + test_results['failed'])
-            accuracy+=iou
-            if iou > best_iou or epoch == 0 or (epoch % 50) == 0:
-                #torch.save(net, os.path.join(save_folder, 'epoch_%02d_iou_%0.2f' % (epoch, iou)))
-                torch.save(net, os.path.join(save_folder, 'epoch_%02d_iou_%0.4f' % (epoch, iou)), _use_new_zipfile_serialization=False)
-                # torch.save(net.state_dict(), os.path.join(save_folder, 'epoch_%02d_iou_%0.2f_statedict.pt' % (epoch, iou)))
-                best_iou = iou
-        schedule.step()
-        print("the accuracy:",accuracy/k_folds)
+        # Save best performing network
+        iou = test_results['correct'] / (test_results['correct'] + test_results['failed'])
+        if iou > best_iou or epoch == 0 or (epoch % 10) == 0:
+            torch.save(net, os.path.join(save_folder, 'epoch_%02d_iou_%0.2f' % (epoch, iou)))
+            torch.save(net.state_dict(), os.path.join(save_folder, 'epoch_%02d_iou_%0.2f_statedict.pt' % (epoch, iou)))
+            best_iou = iou
 
 
 if __name__ == '__main__':

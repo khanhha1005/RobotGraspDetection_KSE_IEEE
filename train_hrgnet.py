@@ -137,15 +137,11 @@ def train(epoch, net, device, train_data, optimizer, batches_per_epoch, vis=Fals
     net.train()
 
     batch_idx = 0
-    index=0
-    count=1
-    # Use batches per epoch to make training on different sized datasets (cornell/jacquard) more equivalent.
-    while index < count:
-        index=index+1
-        batch_idx=0
+    while batch_idx < batches_per_epoch:
         for x, y, _, _, _ in train_data:
-            # print("shape:",x.shape)
-            batch_idx += 1    
+            batch_idx += 1
+            if batch_idx >= batches_per_epoch:
+                break
             xc = x.to(device)
             yc = [yy.to(device) for yy in y]
             lossd = net.compute_loss(xc, yc)
@@ -263,7 +259,7 @@ def run():
         iou = test_results['correct'] / (test_results['correct'] + test_results['failed'])
         if iou > best_iou or epoch == 0 or (epoch % 10) == 0:
             torch.save(net, os.path.join(save_folder, 'epoch_%02d_iou_%0.4f' % (epoch, iou)), _use_new_zipfile_serialization=False)
-            # torch.save(net.state_dict(), os.path.join(save_folder, 'epoch_%02d_iou_%0.2f_statedict.pt' % (epoch, iou)))
+            torch.save(net.state_dict(), os.path.join(save_folder, 'epoch_%02d_iou_%0.2f_statedict.pt' % (epoch, iou)))
             best_iou = iou
 
 
