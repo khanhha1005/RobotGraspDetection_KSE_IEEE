@@ -41,8 +41,8 @@ import collections.abc
 # From PyTorch internals
 def _ntuple(n):
     def parse(x):
-        if isinstance(x, collections.abc.Iterable):
-            return x
+        # if isinstance(x, collections.abc.Iterable):
+        #     return x
         return tuple(repeat(x, n))
     return parse
 
@@ -116,7 +116,7 @@ def trunc_normal_(tensor, mean=0., std=1., a=-2., b=2.):
     """
     return _no_grad_trunc_normal_(tensor, mean, std, a, b)
 class Mlp(nn.Module):
-    def __init__(self, in_features, hidden_features=None, out_features=None, act_layer=nn.GELU, drop=0.):
+    def __init__(self, in_features, hidden_features=None, out_features=None, act_layer=nn.ReLU, drop=0.):  #nn.ReLU  nn.GELU
         super().__init__()
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features
@@ -217,8 +217,8 @@ class WindowAttention(nn.Module):
         q, k, v = qkv[0], qkv[1], qkv[2]  # make torchscript happy (cannot use tensor as tuple)
 
         q = q * self.scale
-        attn = (q @ k.transpose(-2, -1))
-
+        #attn = (q @ k.transpose(-2, -1))
+        attn =  torch.matmul(q,k.transpose(-2, -1))
         relative_position_bias = self.relative_position_bias_table[self.relative_position_index.view(-1)].view(
             self.window_size[0] * self.window_size[1], self.window_size[0] * self.window_size[1], -1)  # Wh*Ww,Wh*Ww,nH
         relative_position_bias = relative_position_bias.permute(2, 0, 1).contiguous()  # nH, Wh*Ww, Wh*Ww
@@ -234,7 +234,8 @@ class WindowAttention(nn.Module):
 
         attn = self.attn_drop(attn)
 
-        x = (attn @ v).transpose(1, 2).reshape(B_, N, C)
+        # x = (attn @ v).transpose(1, 2).reshape(B_, N, C)
+        x = torch.matmul(attn,v).transpose(1, 2).reshape(B_, N, C)
         x = self.proj(x)
         x = self.proj_drop(x)
         return x
@@ -275,7 +276,7 @@ class SwinTransformerBlock(nn.Module):
 
     def __init__(self, dim, input_resolution, num_heads, window_size=7, shift_size=0,
                  mlp_ratio=4., qkv_bias=True, qk_scale=None, drop=0., attn_drop=0., drop_path=0.,
-                 act_layer=nn.GELU, norm_layer=nn.LayerNorm):
+                 act_layer=nn.ReLU, norm_layer=nn.LayerNorm):
         super().__init__()
         self.dim = dim
         self.input_resolution = input_resolution
@@ -862,6 +863,7 @@ class SwinTransformerSys(nn.Module):
                 x = layer_up(x)
             else:
                 x = torch.cat([x, x_downsample[3 - inx]], -1)
+                # print(x.shape)
                 x = self.concat_back_dim[inx](x)
                 x = layer_up(x)
 
@@ -924,3 +926,49 @@ class SwinTransformerSys(nn.Module):
         flops += self.num_features * self.patches_resolution[0] * self.patches_resolution[1] // (2 ** self.num_layers)
         flops += self.num_features * self.num_classes
         return flops
+if __name__ == '__main__':
+    from torchsummary import summary
+    # model = SwinTransformerSys(in_chans=1)
+    # summary(model, (1, 224, 224))
+    # model = SwinTransformerSys(in_chans=3).cuda()
+    #
+    #
+    import time
+
+    # from torchstat import stat
+    from ptflops import get_model_complexity_info
+    from thop import profile
+    model = SwinTransformerSys(in_chans=1,embed_dim=24,num_heads=[3, 6, 12, 24]).cuda()
+    # model = SwinTransformerSys(in_chans=1, embed_dim=12, num_heads=[1, 2, 2, 4]).cuda()
+    # flops, params = profile(model, inputs=(input, ))
+    # macs, params = get_model_complexity_info(model, (3, 224, 224), as_strings=True,
+    #                                          print_per_layer_stat=True, verbose=True)
+    # print('{:<30}  {:<8}'.format('Computational complexity: ', macs))
+    # print('{:<30}  {:<8}'.format('Number of parameters: ', params))
+    # model = SwinTransformerSys(in_chans=3, embed_dim=24, num_heads=[1, 2, 4, 8]).cuda()
+    # stat(model, (3, 224, 224))
+    summary(model, (1, 224, 224))
+    # model = SwinTransformerSys(in_chans=1, )
+    # model = SwinTransformerSys(in_chans=1, embed_dim=96, num_heads=[3, 6, 12, 24])
+    # model = SwinTransformerSys(in_chans=1, embed_dim=96, num_heads=[1, 2, 4, 8])
+    # model = SwinTransformerSys(in_chans=1, embed_dim=48, num_heads=[1, 2, 4, 8])
+    model = SwinTransformerSys(in_chans=1, embed_dim=48, num_heads=[1, 2, 4, 8])
+    # summary(model, (1, 224, 224))
+    model.eval()
+    sum=0.
+    # imge = torch.rand(1, 1, 224, 224)
+    len=20
+    # imge = torch.rand(1, 3, 224, 224)
+    for i in range(len):
+      imge = torch.rand(1, 1, 224, 224)
+      start = time.perf_counter()
+      a = model(imge)
+    # time.sleep(3)
+      end = time.perf_counter()
+      dur = end - start
+      sum+=dur
+    print(sum/len)
+    # imge = torch.rand(3, 1, 224, 224)
+    # a = model(imge)
+    # print(a[0].shape)
+    # print(model)

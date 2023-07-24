@@ -5,25 +5,26 @@ import matplotlib.pyplot as plt
 import torch.utils.data
 from utils.data import get_dataset
 from utils.dataset_processing.grasp import detect_grasps,GraspRectangles
-from utils.dataset_processing.evaluation import calculate_iou_match
-
 from models.common import post_process_output
 import cv2
 import matplotlib
-import time
-
+plt.rcParams.update({
+    "text.usetex": True,
+    "font.family": "sans-serif",
+    "font.sans-serif": ["Helvetica"]})
+matplotlib.use("TkAgg")
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Evaluate GG-CNN')
 
     # Network
-    parser.add_argument('--network', type=str,default="/home/zzl/Desktop/weight hrnet/c_rgbd_epoch_53_iou_0.9950", help='Path to saved network to evaluate')
+    parser.add_argument('--network', type=str,default="./output/models/220623_1311_/epoch_08_iou_0.97", help='Path to saved network to evaluate')
 
     # Dataset & Data & Training
-    parser.add_argument('--dataset', type=str, default="jacquard",help='Dataset Name ("cornell" or "jaquard")')
-    parser.add_argument('--dataset-path', type=str,default="/home/zzl/Pictures/Jacquard" ,help='Path to dataset')
-    parser.add_argument('--use-depth', type=int, default=1, help='Use Depth image for training (1/0)')
+    parser.add_argument('--dataset', type=str, default="cornell",help='Dataset Name ("cornell" or "jaquard")')
+    parser.add_argument('--dataset-path', type=str,default="/home/sam/Desktop/archive111" ,help='Path to dataset')
+    parser.add_argument('--use-depth', type=int, default=0, help='Use Depth image for training (1/0)')
     parser.add_argument('--use-rgb', type=int, default=1, help='Use RGB image for training (0/1)')
     parser.add_argument('--split', type=float, default=0.9,
                         help='Fraction of data for training (remainder is validation)')
@@ -71,9 +72,14 @@ if __name__ == '__main__':
     }
     ld = len(val_data)
     with torch.no_grad():
-        t1 = time.time()
+        batch_idx = 0
+        fig = plt.figure(figsize=(20, 10))
+        # ax = fig.add_subplot(5, 5, 1)
+        # while batch_idx < 100:
         for id,(x, y, didx, rot, zoom_factor) in enumerate( val_data):
-
+                # batch_idx += 1
+                if id>24:
+                    break
                 print(id)
                 print(x.shape)
                 xc = x.to(device)
@@ -90,22 +96,29 @@ if __name__ == '__main__':
 
                 q_out, ang_out, w_out = post_process_output(lossd['pred']['pos'], lossd['pred']['cos'],
                                                             lossd['pred']['sin'], lossd['pred']['width'])
-                s = evaluation.calculate_iou_match(q_out, ang_out,
-                                   val_data.dataset.get_gtbb(didx, rot, zoom_factor),
-                                   no_grasps=10,
-                                   grasp_width=w_out,
-                                   )
+                gs_1 = detect_grasps(q_out, ang_out, width_img=w_out, no_grasps=1)
+                rgb_img=val_dataset.get_rgb(didx, rot, zoom_factor, normalise=False)
+                # print(rgb_img)
+                ax = fig.add_subplot(5, 5, id+1)
+                ax.imshow(rgb_img)
+                ax.axis('off')
+                for g in gs_1:
+                    g.plot(ax)
+        plt.show()
 
-                if s:
-                    results['correct'] += 1
-                else:
-                    results['failed'] += 1
+                # s = evaluation.calculate_iou_match(q_out, ang_out,
+                #                                    val_data.dataset.get_gtbb(didx, rot, zoom_factor),
+                #                                    no_grasps=2,
+                #                                    grasp_width=w_out,
+                #                                    )
+                #
+                # if s:
+                #     results['correct'] += 1
+                # else:
+                #     results['failed'] += 1
 
-        t2 = time.time()
-        print("time:", (t2 - t1) / ld)
-        print('IOU Results: %d/%d = %f' % (results['correct'],
-                              results['correct'] + results['failed'],
-                              results['correct'] / (results['correct'] + results['failed'])))
+
+
 
 
 

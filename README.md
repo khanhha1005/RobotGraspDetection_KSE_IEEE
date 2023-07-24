@@ -1,61 +1,92 @@
-# HRG_Net
-To reduce the spatial dimensional inaccuracy due to upsampling in the traditional CNN framework, we develop a novel grasping visual architecture referred to as High resolution grasp nerual network (HRG-Net), a parallel-branch structure that always maintains a high-resolution representation and repeatedly exchanges information across resolutions. 
-<img src="figures/hr.jpg" width="50%">
+## When Transformer Meets Robotic Grasping: Exploits Context for Efficient Grasping Detection
+
+PyTorch implementation of paper "When Transformer Meets Robotic Grasping:
+Exploits Context for Efficient Grasping Detection"
+
+## Visualization of the architecture
+<img src="img/grasp-transformer.png" width="500" align="middle"/>
+<br>
+
+This code was developed with Python 3.6 on Ubuntu 16.04.  Python requirements can installed by:
+
+```bash
+pip install -r requirements.txt
+```
+
+## Datasets
+
+Currently, both the [Cornell Grasping Dataset](http://pr.cs.cornell.edu/grasping/rect_data/data.php),
+[Jacquard Dataset](https://jacquard.liris.cnrs.fr/) , and [GraspNet 1Billion](https://graspnet.net/datasets.html)  are supported.
+
+### Cornell Grasping Dataset
+1. Download the and extract [Cornell Grasping Dataset](http://pr.cs.cornell.edu/grasping/rect_data/data.php). 
+
+### Jacquard Dataset
+
+1. Download and extract the [Jacquard Dataset](https://jacquard.liris.cnrs.fr/).
+
+### GraspNet 1Billion dataset
+
+1. The dataset can be downloaded [here](https://graspnet.net/datasets.html).
+2. Install graspnetAPI following [here](https://graspnetapi.readthedocs.io/en/latest/install.html#install-api).
+
+   ```bash
+   pip install graspnetAPI
+   ```   
+3.  We use the setting in [here](https://github.com/ryanreadbooks/Modified-GGCNN) 
 
 
-This repository contains the implementation of the High Resolution Grasp Nerual Network(HRG-Net) from the paper:
-**A Robotic Visual Grasping Design: Rethinking Convolution Neural Network with High-Resolutions**
+## Training
+
+Training is done by the `main.py` script.  
+
+Some basic examples:
+
+```bash
+# Train  on Cornell Dataset
+python main.py   --dataset cornell
+
+# k-fold training
+python main_k_fold.py  --dataset cornell 
+
+#  GraspNet 1
+python main_grasp_1b.py 
+```
+
+Trained models are saved in `output/models` by default, with the validation score appended.
+
+## Visualize
+Some basic examples:
+```bash
+# visulaize grasp rectangles
+python visualise_grasp_rectangle.py   --network your network address
+
+# visulaize heatmaps
+python visulaize_heatmaps.py  --network your network address
+
+```
 
 
-[arxiv](https://arxiv.org/abs/2209.07459)|[video](https://www.youtube.com/watch?v=Jhlsp-xzHFY)
 
-**Contact**
+## Running on a Robot
 
-Any questions or comments contact [mail](zzl1215@mail.ustc.edu.cn).
+Our ROS implementation for running the grasping system see [https://github.com/USTC-ICR/SimGrasp/tree/main/SimGrasp](https://github.com/USTC-ICR/SimGrasp/tree/main/SimGrasp).
 
-If you use this work, please cite:
+The original implementation for running experiments on a Kinva Mico arm can be found in the repository [https://github.com/dougsm/ggcnn_kinova_grasping](https://github.com/dougsm/ggcnn_kinova_grasping).
 
-    @article{zhou2022robotic,
-    title={A Robotic Visual Grasping Design: Rethinking Convolution Neural Network with High-Resolutions},
-    author={Zhou, Zhangli and Wang, Shaochen and Chen, Ziyang and Cai, Mingyu and Kan, Zhen},
-    journal={arXiv preprint arXiv:2209.07459},
-     year={2022}
-    }
+## Acknowledgement
+Code heavily inspired and modified from https://github.com/dougsm/ggcnn
 
+If you find this helpful, please cite
+```bash
+@ARTICLE{9810182,
+  author={Wang, Shaochen and Zhou, Zhangli and Kan, Zhen},
+  journal={IEEE Robotics and Automation Letters}, 
+  title={When Transformer Meets Robotic Grasping: Exploits Context for Efficient Grasp Detection}, 
+  year={2022},
+  volume={},
+  number={},
+  pages={1-8},
+  doi={10.1109/LRA.2022.3187261}}
 
-### Installation
-
-    conda create -n hrgnet python==3.8
-    conda activate hrgnet
-    pip install -r requirements.txt / conda env create -f environment.yaml
-
-
-
-### Datasets
-[Cornell](pr.cs.cornell.edu/grasping/rect_data/data.php) | [Jacquard](https://jacquard.liris.cnrs.fr/) | [multiobject](https://drive.google.com/file/d/1ImPDs2Wz3Nv52NWVLNqHj6K02RIi1eGk/view?usp=sharing)(Just for test)
-
-
-
-### Training
-    
-    python train_hrgnet.py
-
-### Evaluation/Visualisation
-For validation and visualization purposes, we provide our [previously trained model](https://drive.google.com/drive/folders/1mzC3R2I4MQ2MOuffxkD2KwNu8G_ozBSZ?usp=share_link)
-
-    python evaluation_grasp.py    # For Cornell and Jacquard dataset
-
-<img src="figures/Figure_5.png" width="50%">
-
-    python evaluation_heatmap.py  # For Cornell and Jacquard dataset
-<img src="figures/Figure_1.png" width="50%">
-
-    python multi_grasp_visualization.py # For multiobject dataset
-
-<img src="figures/multi_2.png" width="50%">
-
-
-### Acknowledgement
-
-Code heavily inspired and modified from https://github.com/dougsm/ggcnn.
-The code for the experiments related to the robot in the physical environment will be released later. For more of our recent work please follow [link](https://github.com/USTC-ICR?tab=repositories)
+```

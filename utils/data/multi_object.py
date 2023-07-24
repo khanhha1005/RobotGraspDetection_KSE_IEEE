@@ -1,12 +1,10 @@
 import os
 import glob
-from sqlite3 import DatabaseError
 
 from .grasp_data import GraspDatasetBase
 from utils.dataset_processing import grasp, image
 
-
-class MultiDataset(GraspDatasetBase):
+class CornellDataset(GraspDatasetBase):
     """
     Dataset wrapper for the Cornell dataset.
     """
@@ -18,21 +16,22 @@ class MultiDataset(GraspDatasetBase):
         :param ds_rotate: If splitting the dataset, rotate the list of items by this fraction first
         :param kwargs: kwargs for GraspDatasetBase
         """
-        super(MultiDataset, self).__init__(**kwargs)
-
-        graspf = glob.glob(os.path.join(file_path, 'rgb*annotations.txt'))
+        super(CornellDataset, self).__init__(**kwargs)
+        file_path="/home/sam/Desktop/multiobject/rgbd"
+        graspf = glob.glob(os.path.join(file_path,'rgb_*.txt'))
         graspf.sort()
-        l = len(graspf)
+        l = 95
         if l == 0:
             raise FileNotFoundError('No dataset files found. Check path: {}'.format(file_path))
 
         if ds_rotate:
             graspf = graspf[int(l*ds_rotate):] + graspf[:int(l*ds_rotate)]
 
-        depthf = glob.glob(os.path.join(file_path, 'depth*.png'))
-        rgbf = glob.glob(os.path.join(file_path, 'rgb*.jpg'))
+        depthf =glob.glob(os.path.join(file_path,'depth_*.png'))
         depthf.sort()
+        rgbf  =glob.glob(os.path.join(file_path,'rgb*.jpg'))
         rgbf.sort()
+
         self.grasp_files = graspf[int(l*start):int(l*end)]
         self.depth_files = depthf[int(l*start):int(l*end)]
         self.rgb_files = rgbf[int(l*start):int(l*end)]

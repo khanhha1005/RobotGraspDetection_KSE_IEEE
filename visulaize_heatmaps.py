@@ -19,12 +19,12 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Evaluate GG-CNN')
 
     # Network
-    parser.add_argument('--network', type=str,default="/home/zzl/Pictures/swin_ggcnn/output/models/220628_0107_/epoch_68_iou_1.0000", help='Path to saved network to evaluate')
+    parser.add_argument('--network', type=str,default="./output/models/220623_1311_/epoch_08_iou_0.97", help='Path to saved network to evaluate')
 
     # Dataset & Data & Training
     parser.add_argument('--dataset', type=str, default="cornell",help='Dataset Name ("cornell" or "jaquard")')
-    parser.add_argument('--dataset-path', type=str,default="/home/zzl/Pictures/cornell" ,help='Path to dataset')
-    parser.add_argument('--use-depth', type=int, default=1, help='Use Depth image for training (1/0)')
+    parser.add_argument('--dataset-path', type=str,default="/home/sam/Desktop/archive111" ,help='Path to dataset')
+    parser.add_argument('--use-depth', type=int, default=0, help='Use Depth image for training (1/0)')
     parser.add_argument('--use-rgb', type=int, default=1, help='Use RGB image for training (0/1)')
     parser.add_argument('--split', type=float, default=0.9,
                         help='Fraction of data for training (remainder is validation)')
@@ -49,6 +49,7 @@ if __name__ == '__main__':
     print(args.network)
     print(args.use_rgb,args.use_depth)
     net = torch.load(args.network)
+    # net_ggcnn = torch.load('./output/models/211112_1458_/epoch_30_iou_0.75')
     device = torch.device("cuda:0")
     Dataset = get_dataset(args.dataset)
 
@@ -77,6 +78,7 @@ if __name__ == '__main__':
         # while batch_idx < 100:
         for id,(x, y, didx, rot, zoom_factor) in enumerate( val_data):
                 # batch_idx += 1
+
                 print(id)
                 print(x.shape)
                 xc = x.to(device)
@@ -97,27 +99,27 @@ if __name__ == '__main__':
                 rgb_img=val_dataset.get_rgb(didx, rot, zoom_factor, normalise=False)
 
                 fig = plt.figure(figsize=(10, 10))
-                ax = fig.add_subplot(221)
+                ax = fig.add_subplot(1, 4, 1)
                 ax.imshow(rgb_img)
 
-                ax = fig.add_subplot(222)
+                ax = fig.add_subplot(1, 4, 2)
                 plot = ax.imshow(q_out, cmap="jet", vmin=0, vmax=1)  # ？terrain
                 plt.colorbar(plot)
                 ax.axis('off')
                 ax.set_title('q image')
 
-                ax = fig.add_subplot(223)  # flag  prism jet
+                ax = fig.add_subplot(1, 4, 3)  # flag  prism jet
                 plot = ax.imshow(ang_out, cmap="hsv", vmin=-np.pi / 2, vmax=np.pi / 2)
                 plt.colorbar(plot)
                 ax.axis('off')
                 ax.set_title('angle')
 
-                ax = fig.add_subplot(224)
-                plot = ax.imshow(w_out, cmap='jet', vmin=0, vmax=150)
+                ax = fig.add_subplot(1, 4, 4)
+                plot = ax.imshow(w_out, cmap='jet', vmin=-0, vmax=150)
                 plt.colorbar(plot)
                 ax.set_title('width')
                 ax.axis('off')
                 # print(rgb_img)
 
                 plt.show()
-                # plt.savefig('RGB_1_%d.pdf' % 1, bbox_inches='tight')
+                plt.savefig('RGB_1_%d.pdf' % 1, bbox_inches='tight')
