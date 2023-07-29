@@ -92,8 +92,8 @@ def train(epoch, net, device, train_data, optimizer, batches_per_epoch, vis=Fals
         for x, y, _, _, _ in train_data:
             # print("shape:",x.shape)
             batch_idx += 1
-            # if batch_idx >= batches_per_epoch:
-            #     break
+            if batch_idx >= batches_per_epoch:
+                break
             # print("x_0:",x[0].shape,y[0][0].shape)
             # plt.imshow(x[0].permute(1,2,0).numpy())
             # plt.show()
